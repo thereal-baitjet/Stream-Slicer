@@ -47,7 +47,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
   const email = "juansantos3131@yaoo.com";
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-fuchsia-500/30 overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white selection:bg-fuchsia-500/30 overflow-x-hidden flex flex-col">
       
       {/* Navbar */}
       <nav className="border-b border-zinc-900 bg-black/50 backdrop-blur fixed top-0 w-full z-50">
@@ -193,6 +193,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
             </div>
          </div>
       </div>
+
+      {/* Innovator Footer */}
+      <footer className="w-full py-8 text-center bg-zinc-950 border-t border-zinc-900 mt-auto">
+         <div className="max-w-2xl mx-auto px-6">
+            <p className="text-fuchsia-500 text-xs font-bold uppercase tracking-widest mb-3">Beta Testing Phase</p>
+            <p className="text-zinc-500 text-sm mb-2">
+              This is in the testing phase for innovator users. We will add features and stuff.
+            </p>
+            <p className="text-zinc-400 text-sm">
+              Just leave a comments to make this app more useful.<br/>
+              DM <a href="https://www.instagram.com/mr.j.c.santos/" target="_blank" rel="noopener noreferrer" className="text-zinc-200 font-bold hover:text-fuchsia-400 transition-colors">@mr.j.c.santos</a> Subject: <span className="text-zinc-200">StreamSlicer</span>
+            </p>
+         </div>
+      </footer>
 
     </div>
   );

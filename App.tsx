@@ -230,7 +230,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-fuchsia-500/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-fuchsia-500/30 flex flex-col">
       
       {/* Export Overlay */}
       {isExporting && (
@@ -281,7 +281,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8 flex-grow w-full">
         {view === 'docs' ? (
           <Documentation onBack={() => setView('app')} />
         ) : (
@@ -427,6 +427,15 @@ const App: React.FC = () => {
           </>
         )}
       </main>
+
+      <footer className="w-full py-6 text-center text-zinc-600 text-xs border-t border-zinc-900 mt-auto bg-black/50 backdrop-blur">
+        <p className="mb-2 uppercase tracking-wider font-bold text-zinc-500">Testing Phase • Innovator Edition</p>
+        <p className="max-w-md mx-auto">
+          We will add features and stuff. Just leave a comments to make this app more useful.
+          <br />
+          DM <a href="https://www.instagram.com/mr.j.c.santos/" target="_blank" rel="noopener noreferrer" className="text-zinc-400 font-bold hover:text-fuchsia-500 transition-colors">@mr.j.c.santos</a> Subject: <em>StreamSlicer</em>
+        </p>
+      </footer>
     </div>
   );
 };
