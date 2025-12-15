@@ -1,50 +1,54 @@
-# Sentinal AI Audit
+# StreamSlicer AI
 
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 ![Gemini API](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=googlebard&logoColor=white)
-![AI Model](https://img.shields.io/badge/Model-Gemini%202.5%20Flash-4285F4?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
-![Status](https://img.shields.io/badge/Status-MVP-success?style=for-the-badge)
-![Platform](https://img.shields.io/badge/Platform-Web-blue?style=for-the-badge)
-![Created By](https://img.shields.io/badge/Created%20By-Vibe-ff69b4?style=for-the-badge)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
 
-**Sentinal AI Audit** is an advanced security intelligence tool designed to automate the analysis of CCTV and surveillance footage. By leveraging the multimodal capabilities of **Google's Gemini 2.5 Flash** model, it transforms raw video data into structured, searchable security logs.
+**StreamSlicer** is a creator economy tool designed to automate the analysis of long-form stream footage. It uses **Google's Gemini 2.5 Flash** model to identify viral, high-energy clips and extracts them using a token-based credit system backed by **Firebase**.
+
+## ⚠️ Payment Integration Required
+
+**Crucial Note for Developers:**
+
+The current payment implementation in `LandingPage.tsx` and `App.tsx` is a **client-side simulation** for demonstration purposes.
+
+To make this application production-ready, you **must**:
+1.  **Implement Webhooks**: Set up a backend (e.g., Firebase Cloud Functions) to receive PayPal Webhook events (Payment Capture).
+2.  **Verify Transactions**: Ensure the transaction ID is valid and the amount matches the credit pack purchased.
+3.  **Secure Database**: Update Firebase Security Rules to prevent client-side writes to `users/{userId}/credits`. Only the backend Admin SDK should be able to increase user balances.
+4.  **Replace Logic**: Remove the `handlePurchaseCredits` simulation in `App.tsx` that blindly adds credits after a timeout.
 
 ## 🚀 Features
 
-*   **Automated Video Analysis**: Upload CCTV footage (supports large files >20MB via Google File API) to detect entities, behaviors, and anomalies automatically.
-*   **Smart Event Timeline**: Generates a precise, clickable timeline of events (Routine, Suspicious, Critical) allowing operators to jump instantly to key moments.
-*   **Executive Summaries**: specific lighting conditions, duration analysis, and a high-level summary of the entire footage.
-*   **Security Grading**: Automatically scores events based on severity (e.g., weapons or force detection vs. routine traffic).
-*   **Secure Architecture**: API keys are handled securely via environment variables or dynamic selection, ensuring safe deployment.
+*   **Pay-As-You-Go AI**: Token-based usage model with a 10x markup on Gemini API costs.
+*   **Automated Analysis**: Uploads GBs of footage directly to Google Gemini via the File API.
+*   **Virality Scoring**: AI agents score clips from 1-10 based on audio dynamics and visual surprise.
+*   **Instant Export**: Client-side recording and ZIP packaging of viral clips.
+*   **Firebase Wallet**: Tracks user credits and usage logs in Realtime Database.
 
 ## 🛠️ Tech Stack
 
 *   **Frontend**: React 19, TypeScript
 *   **Styling**: Tailwind CSS
-*   **AI/ML**: Google Gemini API (`@google/genai`)
-*   **Model**: `gemini-2.5-flash`
+*   **AI**: Google Gemini API (`gemini-2.5-flash`)
+*   **Backend/DB**: Firebase Realtime Database
+*   **Payments**: PayPal (Frontend Integration Only)
 
-## 🔒 Security & Deployment
+## 📦 Setup & Configuration
 
-To deploy this application safely without exposing your personal API quota:
-
-1.  **Do NOT set the `API_KEY` environment variable** in your hosting provider (Vercel, Netlify, etc.).
-2.  Deploy the application as a static site.
-3.  When you (or a user) opens the deployed site, click the **Key Icon** in the top right.
-4.  Enter a Gemini API Key manually. This key is stored in the **User's Browser Local Storage** only.
-5.  This ensures that every user provides their own key, and your personal key remains private and safe.
-
-## 📦 How it Works
-
-1.  **Upload**: The user uploads a video file. Small files are processed inline; large files are securely uploaded via the Gemini File API.
-2.  **Analyze**: The Gemini 2.5 Flash model processes the visual data to identify security-relevant events, filtering out environmental noise (rain, trees).
-3.  **Report**: The app renders a dashboard with a video player synced to a structured event log and intelligence summary.
+1.  **Firebase**:
+    *   Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+    *   Enable **Realtime Database**.
+    *   Copy your config object into `firebase.ts`.
+2.  **Gemini API**:
+    *   Get a key from Google AI Studio.
+    *   Set it in your environment variables or backend proxy (for the pricing calculation logic in `geminiService.ts`, `process.env.API_KEY` is used).
+3.  **PayPal**:
+    *   Update the email address in `LandingPage.tsx`.
+    *   Implement the backend verification mentioned above.
 
 ## 👨‍💻 Credits
 
 **Created by Vibe.**
-
-This project was built to demonstrate the power of multimodal AI in physical security and surveillance auditing.
