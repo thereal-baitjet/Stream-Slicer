@@ -53,13 +53,14 @@ const responseSchema: Schema = {
 
 export const analyzeVideoContent = async (
   file: File, 
-  onProgress: (state: AnalysisState) => void,
-  apiKeyOverride?: string
-): Promise<AnalysisResult> => {
-  const apiKey = apiKeyOverride || process.env.API_KEY;
+  onProgress: (state: AnalysisState) => void
+): Promise<{ result: AnalysisResult; usage: { promptTokenCount: number; candidatesTokenCount: number } }> => {
+  
+  // Use the Project/Developer API Key strictly. User keys are no longer accepted.
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey) {
-    throw new Error("API Key is missing. Please click the Key icon in the top right to configure it.");
+    throw new Error("System Configuration Error: API Key missing on server.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -71,8 +72,6 @@ export const analyzeVideoContent = async (
 
   try {
     // 1. Upload Logic
-    // We use ai.files.upload which handles the Resumable Upload protocol.
-    // This allows uploading GB-sized files directly to Google, bypassing server limits.
     onProgress(AnalysisState.UPLOADING);
     console.log("Starting Resumable Upload...");
     
@@ -129,20 +128,27 @@ export const analyzeVideoContent = async (
         systemInstruction: systemInstruction,
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        temperature: 0.4, // Slightly creative for titles
+        temperature: 0.4, 
       },
     });
 
     const text = response.text;
+    const usage = response.usageMetadata || { promptTokenCount: 0, candidatesTokenCount: 0 };
+
     if (!text) throw new Error("No response from model");
 
-    return JSON.parse(text) as AnalysisResult;
+    return { 
+      result: JSON.parse(text) as AnalysisResult,
+      usage: {
+        promptTokenCount: usage.promptTokenCount || 0,
+        candidatesTokenCount: usage.candidatesTokenCount || 0
+      }
+    };
 
   } catch (error: any) {
     console.error("Gemini Analysis Error:", error);
-    // Add specific help for 403 errors which are common with direct browser uploads if the key lacks permissions
     if (error.message?.includes("403") || error.message?.includes("fetch failed")) {
-       throw new Error("Upload failed. Ensure your API Key has permission to use the File API, or try a smaller file.");
+       throw new Error("Upload failed. Server permission error.");
     }
     throw error;
   }

@@ -1,14 +1,15 @@
 import React from 'react';
 import { ViralClip } from '../types';
-import { FireIcon, CheckCircleIcon, PlayIcon } from './Icons';
+import { FireIcon, PlayIcon, DownloadIcon } from './Icons';
 
 interface ClipCardProps {
   clip: ViralClip;
   onClick: (timestamp: string) => void;
+  onExport: (clip: ViralClip) => void;
   isActive: boolean;
 }
 
-const ClipCard: React.FC<ClipCardProps> = ({ clip, onClick, isActive }) => {
+const ClipCard: React.FC<ClipCardProps> = ({ clip, onClick, onExport, isActive }) => {
   const getScoreColor = (score: number) => {
     if (score >= 9) return 'border-l-fuchsia-500 hover:bg-fuchsia-950/20';
     if (score >= 7) return 'border-l-purple-500 hover:bg-purple-950/20';
@@ -21,10 +22,15 @@ const ClipCard: React.FC<ClipCardProps> = ({ clip, onClick, isActive }) => {
     return "text-zinc-400 bg-zinc-800 border-zinc-700";
   };
 
+  const handleExport = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onExport(clip);
+  };
+
   return (
-    <button
+    <div
       onClick={() => onClick(clip.start_timestamp)}
-      className={`w-full text-left group flex flex-col gap-3 p-4 rounded-r-xl border-l-4 transition-all duration-300 border-y border-r border-zinc-800 bg-zinc-900/40 
+      className={`w-full text-left group flex flex-col gap-3 p-4 rounded-r-xl border-l-4 transition-all duration-300 border-y border-r border-zinc-800 bg-zinc-900/40 cursor-pointer
         ${getScoreColor(clip.virality_score)}
         ${isActive ? 'bg-zinc-800 ring-1 ring-zinc-700' : ''}
       `}
@@ -51,11 +57,21 @@ const ClipCard: React.FC<ClipCardProps> = ({ clip, onClick, isActive }) => {
         </p>
       </div>
       
-      <div className="flex items-center gap-2 text-xs text-zinc-600 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <PlayIcon className="w-3 h-3" />
-          <span>Click to jump to clip</span>
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800/50">
+        <div className="flex items-center gap-2 text-xs text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity">
+            <PlayIcon className="w-3 h-3" />
+            <span>Click to seek</span>
+        </div>
+        
+        <button 
+          onClick={handleExport}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition-colors border border-zinc-700 hover:border-zinc-600"
+        >
+          <DownloadIcon className="w-3.5 h-3.5" />
+          Export Clip Data
+        </button>
       </div>
-    </button>
+    </div>
   );
 };
 
