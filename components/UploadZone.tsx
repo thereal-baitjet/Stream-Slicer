@@ -5,20 +5,25 @@ interface UploadZoneProps {
   onFileSelect: (file: File) => void;
   onError: (msg: string) => void;
   isProcessing: boolean;
+  maxSize?: number; // Optional custom limit
 }
 
-// Increased limit since we are using Resumable Upload via SDK
-// Browsers can handle large files if we don't try to read them all into memory at once
-// The SDK's uploadFile handles this streaming.
-const MAX_FILE_SIZE = 1500 * 1024 * 1024; // 1.5 GB Soft Limit for browser safety
+const DEFAULT_MAX_SIZE = 1500 * 1024 * 1024; // 1.5 GB
 
-const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, onError, isProcessing }) => {
+const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, onError, isProcessing, maxSize = DEFAULT_MAX_SIZE }) => {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const formatSize = (bytes: number) => {
+    if (bytes >= 1024 * 1024 * 1024) {
+      return (bytes / (1024 * 1024 * 1024)).toFixed(1) + 'GB';
+    }
+    return Math.round(bytes / (1024 * 1024)) + 'MB';
+  };
+
   const validateAndSelect = (file: File) => {
-    if (file.size > MAX_FILE_SIZE) {
-      onError("File is too large for this browser demo (Limit: 1.5GB). For larger files, a backend proxy is required.");
+    if (file.size > maxSize) {
+      onError(`File is too large for this plan. Limit: ${formatSize(maxSize)}.`);
       return;
     }
     if (!file.type.startsWith('video/')) {
@@ -84,7 +89,7 @@ const UploadZone: React.FC<UploadZoneProps> = ({ onFileSelect, onError, isProces
         </div>
         <div>
           <h3 className="text-xl font-bold text-zinc-100 group-hover:text-white">Upload Stream VOD</h3>
-          <p className="text-zinc-400 text-sm mt-2">Drag & drop MP4/MOV (up to 1.5GB)</p>
+          <p className="text-zinc-400 text-sm mt-2">Drag & drop MP4/MOV (Max {formatSize(maxSize)})</p>
         </div>
         <div className="flex gap-2 text-xs text-zinc-500 font-mono">
            <span className="bg-zinc-900 px-2 py-1 rounded border border-zinc-800">Direct-to-Google Upload</span>

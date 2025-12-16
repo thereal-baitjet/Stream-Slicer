@@ -2,7 +2,18 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import JSZip from 'jszip';
 import { AnalysisResult, AnalysisState, ViralClip } from './types';
 import { analyzeVideoContent } from './services/geminiService';
-import { getUserId, getUserBalance, addCredits, deductCredits, logUsage } from './firebase';
+import { 
+  auth, 
+  getUserBalance, 
+  addCredits, 
+  deductCredits, 
+  logUsage, 
+  checkFreeTrialEligibility, 
+  markFreeTrialUsed,
+  signInWithGoogle,
+  logoutUser
+} from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { calculateCost, estimateVideoCost } from './services/pricing';
 import VideoPlayer from './components/VideoPlayer';
 import ClipCard from './components/EventCard'; 
@@ -22,41 +33,101 @@ const App: React.FC = () => {
   const [seekTime, setSeekTime] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Wallet State
+  // Auth & Wallet State
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const [credits, setCredits] = useState<number>(0);
-  const [userId, setUserId] = useState<string>('');
+  const [isTrial, setIsTrial] = useState<boolean>(false);
   
   // Export State
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState<number>(0);
   const videoPlayerRef = useRef<HTMLVideoElement>(null);
 
-  // Initialize User and Balance
+  // Initialize Auth Listener
   useEffect(() => {
-    const init = async () => {
-      const uid = getUserId();
-      setUserId(uid);
-      const balance = await getUserBalance(uid);
-      setCredits(balance);
-    };
-    init();
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        // User just logged in
+        const balance = await getUserBalance(currentUser.uid);
+        setCredits(balance);
+        setView('app');
+      } else {
+        // User logged out
+        setView('landing');
+        setCredits(0);
+      }
+      setLoadingAuth(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const refreshBalance = async () => {
-    if (userId) {
-      const balance = await getUserBalance(userId);
+    if (user) {
+      const balance = await getUserBalance(user.uid);
       setCredits(balance);
     }
   };
 
+  const handleLogin = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      alert("Login failed. Please try again.");
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setView('landing');
+    setVideoFile(null);
+    setAnalysisResult(null);
+    setIsTrial(false);
+  };
+
   const handlePurchaseCredits = async (amount: number) => {
+    if (!user) {
+        await handleLogin();
+        return; // Logic continues in onAuthStateChanged
+    }
     // In a real app, this is called by a webhook from PayPal.
     // Here we simulate it from the client after user clicks PayPal button
-    await addCredits(userId, amount);
+    await addCredits(user.uid, amount);
     await refreshBalance();
     alert(`Successfully added ${amount} credits!`);
+    setIsTrial(false);
     setView('app');
   };
+
+  const handleTryFree = async () => {
+    if (!user) {
+        await handleLogin();
+        // After login, we need to check eligibility. 
+        // This makes the UX slightly jumpy (Login -> Dashboard -> Click again), 
+        // but for MVP it ensures we have the UID.
+        // Ideally, we'd store 'intendedAction' in state.
+        return; 
+    }
+    
+    const isEligible = await checkFreeTrialEligibility(user.uid);
+    if (isEligible) {
+      setIsTrial(true);
+      setView('app');
+    } else {
+      alert("You have already used your Free Trial. Please purchase credits to continue.");
+      setIsTrial(false);
+    }
+  };
+
+  // Re-check trial eligibility if user clicks button after logging in
+  useEffect(() => {
+    if (user && view === 'app' && credits === 0) {
+        // Optional: Auto-suggest trial if 0 credits? 
+        // For now, we leave it manual via the header or landing.
+    }
+  }, [user, view, credits]);
 
   const handleFileSelect = useCallback((file: File) => {
     setErrorMsg(null);
@@ -74,19 +145,24 @@ const App: React.FC = () => {
   }, []);
 
   const startAnalysis = useCallback(async () => {
-    if (!videoFile) return;
+    if (!videoFile || !user) return;
 
-    // 1. Estimate Cost
-    // Use an approximate video duration if available, else guess based on size
-    // 1MB ~ 2 seconds for high quality, very rough estimate if metadata not parsed
-    const estimatedDuration = videoFile.size / (1024 * 1024 * 0.5); // very rough estimate
-    const estimatedCost = estimateVideoCost(estimatedDuration);
-    
-    // 2. Check Balance
-    if (credits < 10) { // Minimum threshold to start
-        setErrorMsg(`Insufficient credits. You need at least 10 credits to start. Balance: ${credits}`);
-        return;
+    // TRIAL LOGIC START
+    if (isTrial) {
+       // Strict 30MB Limit for Trial
+       const MAX_TRIAL_SIZE = 30 * 1024 * 1024;
+       if (videoFile.size > MAX_TRIAL_SIZE) {
+          setErrorMsg("Free Trial Limit Exceeded. Max file size is 30MB.");
+          return;
+       }
+    } else {
+      // 2. Check Balance for non-trial
+      if (credits < 10) { 
+          setErrorMsg(`Insufficient credits. You need at least 10 credits to start. Balance: ${credits}`);
+          return;
+      }
     }
+    // TRIAL LOGIC END
 
     setAnalysisState(AnalysisState.UPLOADING);
     setErrorMsg(null);
@@ -96,30 +172,44 @@ const App: React.FC = () => {
         setAnalysisState(state);
       });
       
-      // 3. Calculate Actual Cost & Deduct
       const actualCost = calculateCost(usage.promptTokenCount, usage.candidatesTokenCount);
-      
-      const success = await deductCredits(userId, actualCost);
-      if (success) {
-        logUsage(userId, actualCost, { 
+
+      if (isTrial) {
+        // Mark trial as used
+        await markFreeTrialUsed(user.uid);
+        logUsage(user.uid, 0, { 
+          type: 'FREE_TRIAL',
           fileName: videoFile.name, 
           tokens: usage,
           timestamp: new Date().toISOString() 
         });
-        setCredits(prev => prev - actualCost);
         setAnalysisResult(result);
         setAnalysisState(AnalysisState.COMPLETE);
+        // We do NOT disable trial mode immediately here, 
+        // because we want the UI to remain consistent until they leave/refresh
       } else {
-        setErrorMsg("Analysis complete, but credit deduction failed. Please contact support.");
-        setAnalysisResult(result); // Show result anyway to be nice
-        setAnalysisState(AnalysisState.COMPLETE);
+        const success = await deductCredits(user.uid, actualCost);
+        if (success) {
+          logUsage(user.uid, actualCost, { 
+            fileName: videoFile.name, 
+            tokens: usage,
+            timestamp: new Date().toISOString() 
+          });
+          setCredits(prev => prev - actualCost);
+          setAnalysisResult(result);
+          setAnalysisState(AnalysisState.COMPLETE);
+        } else {
+          setErrorMsg("Analysis complete, but credit deduction failed. Please contact support.");
+          setAnalysisResult(result);
+          setAnalysisState(AnalysisState.COMPLETE);
+        }
       }
 
     } catch (error: any) {
       setAnalysisState(AnalysisState.ERROR);
       setErrorMsg(error.message || "Failed to analyze video. Please try again.");
     }
-  }, [videoFile, credits, userId]);
+  }, [videoFile, credits, user, isTrial]);
 
   const parseTimestamp = (timeStr: string): number => {
     const parts = timeStr.split(':').map(Number);
@@ -225,8 +315,19 @@ const App: React.FC = () => {
       }
   };
 
-  if (view === 'landing') {
-    return <LandingPage onEnterApp={() => setView('app')} onBuyCredits={handlePurchaseCredits} />;
+  if (loadingAuth) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+         <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-zinc-800 border-t-fuchsia-500 animate-spin"></div>
+            <p className="text-zinc-400 animate-pulse">Initializing Secure Environment...</p>
+         </div>
+      </div>
+    );
+  }
+
+  if (view === 'landing' && !user) {
+    return <LandingPage onEnterApp={handleLogin} onLogin={handleLogin} onBuyCredits={handlePurchaseCredits} onTryFree={handleTryFree} />;
   }
 
   return (
@@ -257,12 +358,20 @@ const App: React.FC = () => {
             </div>
             <h1 className="font-bold text-xl tracking-tight">Stream<span className="text-fuchsia-500">Slicer</span></h1>
           </button>
+          
           <div className="flex items-center gap-4">
+             {isTrial && (
+                <div className="hidden md:flex bg-fuchsia-500/10 border border-fuchsia-500/30 px-3 py-1 rounded-full items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-fuchsia-500 animate-pulse"></span>
+                    <span className="text-xs font-bold text-fuchsia-400 uppercase tracking-wide">Free Trial Active</span>
+                </div>
+            )}
+             
              {/* Wallet Display */}
              <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <FireIcon className="w-4 h-4 text-fuchsia-500" />
                 <span className="font-mono font-bold text-white">{credits.toLocaleString()}</span>
-                <span className="text-xs text-zinc-500 uppercase tracking-wide">Credits</span>
+                <span className="text-xs text-zinc-500 uppercase tracking-wide hidden sm:inline">Credits</span>
                 <button 
                   onClick={() => setView('landing')} 
                   className="ml-2 text-xs bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-2 py-0.5 rounded"
@@ -271,12 +380,19 @@ const App: React.FC = () => {
                 </button>
              </div>
 
-             <button 
-               onClick={() => setView('docs')}
-               className={`text-sm transition-colors ${view === 'docs' ? 'text-white font-medium' : 'text-zinc-400 hover:text-white'}`}
-             >
-               Documentation
-             </button>
+             <div className="flex items-center gap-2 pl-4 border-l border-zinc-800">
+                {user?.photoURL ? (
+                    <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-zinc-700" />
+                ) : (
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold">{user?.email?.[0].toUpperCase()}</div>
+                )}
+                <button 
+                    onClick={handleLogout}
+                    className="text-xs text-zinc-400 hover:text-white transition-colors"
+                >
+                    Sign Out
+                </button>
+             </div>
           </div>
         </div>
       </header>
@@ -294,14 +410,23 @@ const App: React.FC = () => {
                       Turn Streams into Viral Shorts
                     </h2>
                     <p className="text-zinc-400 text-lg">
-                      Upload footage. Pay with credits.
+                      {isTrial ? "Trial Mode: Upload a clip under 30MB to test." : "Upload footage. Pay with credits."}
                     </p>
+                    
+                    {!isTrial && credits < 10 && (
+                        <div className="pt-2">
+                            <button onClick={handleTryFree} className="text-sm text-fuchsia-400 hover:text-fuchsia-300 underline underline-offset-4">
+                                Check Free Trial Eligibility
+                            </button>
+                        </div>
+                    )}
                   </div>
 
                   <UploadZone 
                     onFileSelect={handleFileSelect} 
                     onError={handleUploadError}
                     isProcessing={false} 
+                    maxSize={isTrial ? 30 * 1024 * 1024 : undefined}
                   />
                   
                   {videoFile && (
@@ -317,14 +442,14 @@ const App: React.FC = () => {
                       </div>
                       <button 
                         onClick={startAnalysis}
-                        disabled={credits < 10}
+                        disabled={!isTrial && credits < 10}
                         className={`px-6 py-2 rounded-lg font-bold transition-all shadow-lg ${
-                          credits >= 10 
+                          (isTrial || credits >= 10)
                            ? 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white shadow-fuchsia-900/20' 
                            : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                         }`}
                       >
-                        {credits >= 10 ? 'Analyze (Credits Apply)' : 'Insufficent Credits'}
+                        {isTrial ? 'Analyze Free Trial' : (credits >= 10 ? 'Analyze (Credits Apply)' : 'Insufficent Credits')}
                       </button>
                     </div>
                   )}

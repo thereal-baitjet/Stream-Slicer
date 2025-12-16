@@ -1,5 +1,5 @@
 {
-  "name": "StreamSlicer MVP",
+  "name": "StreamSlicer",
   "description": "A creator economy tool that analyzes long-form stream footage to identify and extract viral high-energy clips using Gemini AI.",
   "requestFramePermissions": []
 }
