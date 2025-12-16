@@ -9,11 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
     "@google/genai": "^1.33.0",
+    "@paypal/react-paypal-js": "^8.9.2",
+    "firebase": "^12.6.0",
     "jszip": "^3.10.1",
-    "firebase": "^12.6.0"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

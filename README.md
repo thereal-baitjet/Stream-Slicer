@@ -46,8 +46,8 @@ To make this application production-ready, you **must**:
     *   Get a key from Google AI Studio.
     *   Set it in your environment variables or backend proxy (for the pricing calculation logic in `geminiService.ts`, `process.env.API_KEY` is used).
 3.  **PayPal**:
-    *   Update the email address in `LandingPage.tsx`.
-    *   Implement the backend verification mentioned above.
+    *   Create a PayPal Business account and get a Client ID from [developer.paypal.com](https://developer.paypal.com).
+    *   Set it in your environment variables as `PAYPAL_CLIENT_ID`.
 
 ## 👨‍💻 Credits
 

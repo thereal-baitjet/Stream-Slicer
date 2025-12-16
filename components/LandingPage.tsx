@@ -1,4 +1,5 @@
 import React from 'react';
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { FireIcon, CheckCircleIcon, PayPalIcon, LockIcon } from './Icons';
 
 interface LandingPageProps {
@@ -6,48 +7,38 @@ interface LandingPageProps {
   onBuyCredits: (amount: number) => void;
 }
 
-const PayPalButton: React.FC<{ 
-  email: string; 
-  amount?: string; 
-  itemName: string; 
-  label: string; 
-  onSuccess: () => void;
-  className?: string;
-}> = ({ email, amount, itemName, label, onSuccess, className }) => {
-  const baseUrl = "https://www.paypal.com/cgi-bin/webscr";
-  const cmd = '_xclick';
-  
-  let href = `${baseUrl}?cmd=${cmd}&business=${email}&item_name=${encodeURIComponent(itemName)}&currency_code=USD`;
-  if (amount) {
-    href += `&amount=${amount}`;
-  }
-
-  // NOTE: In a real app, this would use PayPal Webhooks to verify payment server-side.
-  // For this MVP, clicking the button simulates the intent, and we provide a "Claim" button for the user to get their credits.
-  return (
-    <div className="w-full">
-      <a 
-        href={href} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        onClick={() => {
-           // Simulate a delay for the user to pay, then trigger callback
-           setTimeout(() => onSuccess(), 2000); 
-        }}
-        className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-lg font-bold transition-all transform hover:scale-105 cursor-pointer ${className}`}
-      >
-        <PayPalIcon className="w-5 h-5" />
-        {label}
-      </a>
-    </div>
-  );
-};
-
 export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredits }) => {
-  const email = "juansantos3131@yaoo.com";
+  const paypalClientId = process.env.PAYPAL_CLIENT_ID || 'YOUR_PAYPAL_CLIENT_ID'; // Set in .env
+
+  const createOrder = (amount: string, credits: number) => (data: any, actions: any) => {
+    return actions.order.create({
+      purchase_units: [
+        {
+          amount: {
+            value: amount,
+          },
+          description: `StreamSlicer ${credits} Credits`,
+        },
+      ],
+    });
+  };
+
+  const onApprove = (credits: number) => (data: any, actions: any) => {
+    return actions.order.capture().then((details: any) => {
+      // In production, verify the payment server-side via webhook
+      // For now, add credits on successful capture
+      onBuyCredits(credits);
+    });
+  };
+
+  const onError = (err: any) => {
+    console.error('PayPal error:', err);
+    alert('Payment failed. Please try again.');
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-fuchsia-500/30 overflow-x-hidden flex flex-col">
+    <PayPalScriptProvider options={{ "client-id": paypalClientId }}>
+      <div className="min-h-screen bg-black text-white selection:bg-fuchsia-500/30 overflow-x-hidden flex flex-col">
       
       {/* Navbar */}
       <nav className="border-b border-zinc-900 bg-black/50 backdrop-blur fixed top-0 w-full z-50">
@@ -121,13 +112,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
                       Analyze ~2 hours of 1080p
                     </li>
                   </ul>
-                  <PayPalButton 
-                    email={email}
-                    amount="5.00"
-                    itemName="StreamSlicer 5000 Credits"
-                    label="Buy 5,000 Credits"
-                    onSuccess={() => onBuyCredits(5000)}
-                    className="bg-zinc-100 hover:bg-white text-black"
+                  <PayPalButtons 
+                    createOrder={createOrder("5.00", 5000)}
+                    onApprove={onApprove(5000)}
+                    onError={onError}
+                    style={{ layout: "horizontal" }}
                   />
                </div>
 
@@ -154,13 +143,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
                       Priority Support
                     </li>
                   </ul>
-                  <PayPalButton 
-                    email={email}
-                    amount="20.00"
-                    itemName="StreamSlicer 22000 Credits"
-                    label="Buy 22,000 Credits"
-                    onSuccess={() => onBuyCredits(22000)}
-                    className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white"
+                  <PayPalButtons 
+                    createOrder={createOrder("20.00", 22000)}
+                    onApprove={onApprove(22000)}
+                    onError={onError}
+                    style={{ layout: "horizontal" }}
                   />
                </div>
 
@@ -180,13 +167,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
                       Bulk Analysis Ready
                     </li>
                   </ul>
-                  <PayPalButton 
-                    email={email}
-                    amount="50.00"
-                    itemName="StreamSlicer 60000 Credits"
-                    label="Buy 60,000 Credits"
-                    onSuccess={() => onBuyCredits(60000)}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700"
+                  <PayPalButtons 
+                    createOrder={createOrder("50.00", 60000)}
+                    onApprove={onApprove(60000)}
+                    onError={onError}
+                    style={{ layout: "horizontal" }}
                   />
                </div>
 
@@ -209,5 +194,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onBuyCredi
       </footer>
 
     </div>
+    </PayPalScriptProvider>
   );
 };
