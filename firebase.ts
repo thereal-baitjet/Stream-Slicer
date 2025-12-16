@@ -1,21 +1,24 @@
 import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getDatabase, ref, get, set, runTransaction, child, update } from "firebase/database";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
-// Configuration uses environment variables for security and flexibility.
-// If these are not set, it falls back to placeholders which will likely fail authentication.
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY || "YOUR_FIREBASE_API_KEY",
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "your-project.firebaseapp.com",
-  databaseURL: process.env.FIREBASE_DATABASE_URL || "https://your-project-default-rtdb.firebaseio.com",
-  projectId: process.env.FIREBASE_PROJECT_ID || "your-project",
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "your-project.appspot.com",
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "123456789",
-  appId: process.env.FIREBASE_APP_ID || "1:123456789:web:abcdef"
+  apiKey: "AIzaSyAsFxXqVR-sVB3q5AifvZDl41P17mgGrtU",
+  authDomain: "fitness-app-c19f0.firebaseapp.com",
+  databaseURL: "https://fitness-app-c19f0-default-rtdb.firebaseio.com",
+  projectId: "fitness-app-c19f0",
+  storageBucket: "fitness-app-c19f0.firebasestorage.app",
+  messagingSenderId: "469356591287",
+  appId: "1:469356591287:web:847fb8b66d75ad4f63b532",
+  measurementId: "G-CSBK484PPN"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
 const db = getDatabase(app);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
@@ -28,7 +31,7 @@ export const signInWithGoogle = async () => {
   } catch (error: any) {
     console.error("Error signing in with Google", error);
     if (error.code === 'auth/configuration-not-found' || error.code === 'auth/invalid-api-key') {
-      alert("Firebase Configuration Error: Please check your environment variables (FIREBASE_API_KEY, etc).");
+      alert("Firebase Configuration Error: Please check your Firebase project setup.");
     }
     throw error;
   }
