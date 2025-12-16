@@ -3,7 +3,7 @@ import { FireIcon, CheckCircleIcon, PayPalIcon, LockIcon } from './Icons';
 
 interface LandingPageProps {
   onEnterApp: () => void;
-  onLogin: () => void;
+  onLogin: (provider: 'google' | 'github') => void; // Updated signature
   onBuyCredits: (amount: number) => void;
   onTryFree: () => void;
 }
@@ -24,8 +24,6 @@ const PayPalButton: React.FC<{
     href += `&amount=${amount}`;
   }
 
-  // NOTE: In a real app, this would use PayPal Webhooks to verify payment server-side.
-  // For this MVP, clicking the button simulates the intent, and we provide a "Claim" button for the user to get their credits.
   return (
     <div className="w-full">
       <a 
@@ -33,7 +31,6 @@ const PayPalButton: React.FC<{
         target="_blank" 
         rel="noopener noreferrer"
         onClick={() => {
-           // Simulate a delay for the user to pay, then trigger callback
            setTimeout(() => onSuccess(), 2000); 
         }}
         className={`flex items-center justify-center gap-2 w-full py-3 px-4 rounded-lg font-bold transition-all transform hover:scale-105 cursor-pointer ${className}`}
@@ -61,10 +58,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onLogin, o
             <span className="font-bold text-xl tracking-tight">Stream<span className="text-fuchsia-500">Slicer</span></span>
           </div>
           <button 
-            onClick={onLogin}
+            onClick={() => onLogin('github')}
             className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
           >
-            Sign In with Google
+            Log In
           </button>
         </div>
       </nav>
@@ -85,20 +82,31 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onLogin, o
             Powered by Gemini 2.5 Flash.
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-             <button 
-               onClick={onTryFree}
-               className="bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-zinc-200 transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-             >
-               Try for Free
-             </button>
+          <div className="flex flex-col items-center gap-3 pt-6">
+             {/* Vercel-Style GitHub Button */}
              <button
-               onClick={onLogin} 
-               className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white px-8 py-4 rounded-full font-bold text-lg transition-all hover:shadow-[0_0_40px_-10px_rgba(232,121,249,0.5)]"
+               onClick={() => onLogin('github')}
+               className="flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-md font-medium text-lg hover:bg-zinc-200 transition-all w-full max-w-xs justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] group"
              >
-               Sign In to Buy Credits
+               <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-black group-hover:scale-110 transition-transform"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.05-.015-2.055-3.33.72-4.035-1.605-4.035-1.605-.54-1.38-1.335-1.755-1.335-1.755-1.087-.75.075-.735.075-.735 1.2.09 1.83 1.245 1.83 1.245 1.065 1.83 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405 1.02 0 2.04.135 3 .405 2.28-1.56 3.285-1.23 3.285-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.285 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path></svg>
+               Continue with GitHub
+             </button>
+             
+             {/* Google Fallback */}
+             <button
+               onClick={() => onLogin('google')} 
+               className="text-zinc-500 hover:text-zinc-300 text-sm font-medium transition-colors"
+             >
+               or continue with Google
              </button>
           </div>
+          
+          <button 
+             onClick={onTryFree}
+             className="text-fuchsia-500 hover:text-fuchsia-400 text-sm underline underline-offset-4 pt-4"
+           >
+             Try Demo Mode
+           </button>
         </div>
       </div>
 
@@ -130,10 +138,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onLogin, o
                     </li>
                   </ul>
                   <button
-                    onClick={onLogin}
+                    onClick={() => onLogin('github')}
                     className="bg-zinc-100 hover:bg-white text-black w-full py-3 px-4 rounded-lg font-bold transition-all"
                   >
-                    Sign In to Buy
+                    Get Started
                   </button>
                </div>
 
@@ -161,10 +169,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onLogin, o
                     </li>
                   </ul>
                   <button
-                    onClick={onLogin}
+                    onClick={() => onLogin('github')}
                     className="bg-fuchsia-600 hover:bg-fuchsia-500 text-white w-full py-3 px-4 rounded-lg font-bold transition-all"
                   >
-                    Sign In to Buy
+                    Get Started
                   </button>
                </div>
 
@@ -185,10 +193,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onEnterApp, onLogin, o
                     </li>
                   </ul>
                   <button
-                    onClick={onLogin}
+                    onClick={() => onLogin('github')}
                     className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 w-full py-3 px-4 rounded-lg font-bold transition-all"
                   >
-                    Sign In to Buy
+                    Get Started
                   </button>
                </div>
 

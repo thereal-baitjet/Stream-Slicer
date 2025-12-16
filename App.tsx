@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { AnalysisResult, AnalysisState, ViralClip } from './types';
 import { analyzeVideoContent } from './services/geminiService';
 import { 
-  auth, 
+  // auth object is now handled internally in service
   getUserBalance, 
   addCredits, 
   deductCredits, 
@@ -11,16 +11,18 @@ import {
   checkFreeTrialEligibility, 
   markFreeTrialUsed,
   signInWithGoogle,
-  logoutUser
-} from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { calculateCost, estimateVideoCost } from './services/pricing';
+  signInWithGithub,
+  logoutUser,
+  onAuthStateChanged,
+  type User 
+} from './services/supabase'; // CHANGED: Importing from Supabase service
+import { calculateCost } from './services/pricing';
 import VideoPlayer from './components/VideoPlayer';
 import ClipCard from './components/EventCard'; 
 import UploadZone from './components/UploadZone';
 import Documentation from './components/Documentation';
 import { LandingPage } from './components/LandingPage';
-import { LoaderIcon, AlertIcon, DownloadIcon, FireIcon } from './components/Icons';
+import { AlertIcon, DownloadIcon, FireIcon } from './components/Icons';
 
 const App: React.FC = () => {
   // Views: 'landing' (default) -> 'app' | 'docs'
@@ -46,13 +48,22 @@ const App: React.FC = () => {
 
   // Initialize Auth Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    // onAuthStateChanged returns an unsubscribe function
+    // Note: Removed 'auth' parameter as Supabase handles client singleton internally
+    const unsubscribe = onAuthStateChanged(async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         // User just logged in
-        const balance = await getUserBalance(currentUser.uid);
-        setCredits(balance);
-        setView('app');
+        try {
+          const balance = await getUserBalance(currentUser.uid);
+          setCredits(balance);
+          // If we are on landing, go to app
+          if (view === 'landing') {
+              setView('app');
+          }
+        } catch (e) {
+          console.error("Failed to fetch balance", e);
+        }
       } else {
         // User logged out
         setView('landing');
@@ -62,7 +73,7 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [view]);
 
   const refreshBalance = async () => {
     if (user) {
@@ -71,11 +82,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = async (provider: 'google' | 'github' = 'google') => {
     try {
-      await signInWithGoogle();
-    } catch (error) {
-      alert("Login failed. Please try again.");
+      if (provider === 'github') {
+        await signInWithGithub();
+      } else {
+        await signInWithGoogle();
+      }
+    } catch (error: any) {
+      alert("Login Error: " + error.message);
     }
   };
 
@@ -89,7 +104,7 @@ const App: React.FC = () => {
 
   const handlePurchaseCredits = async (amount: number) => {
     if (!user) {
-        await handleLogin();
+        await handleLogin('github'); // Default to GitHub for purchases
         return; // Logic continues in onAuthStateChanged
     }
     // In a real app, this is called by a webhook from PayPal.
@@ -103,11 +118,7 @@ const App: React.FC = () => {
 
   const handleTryFree = async () => {
     if (!user) {
-        await handleLogin();
-        // After login, we need to check eligibility. 
-        // This makes the UX slightly jumpy (Login -> Dashboard -> Click again), 
-        // but for MVP it ensures we have the UID.
-        // Ideally, we'd store 'intendedAction' in state.
+        await handleLogin('github');
         return; 
     }
     
@@ -123,11 +134,10 @@ const App: React.FC = () => {
 
   // Re-check trial eligibility if user clicks button after logging in
   useEffect(() => {
-    if (user && view === 'app' && credits === 0) {
-        // Optional: Auto-suggest trial if 0 credits? 
-        // For now, we leave it manual via the header or landing.
+    if (user && view === 'app' && credits === 0 && !isTrial) {
+        // Logic to check trial could go here if we wanted auto-trial
     }
-  }, [user, view, credits]);
+  }, [user, view, credits, isTrial]);
 
   const handleFileSelect = useCallback((file: File) => {
     setErrorMsg(null);
@@ -327,7 +337,7 @@ const App: React.FC = () => {
   }
 
   if (view === 'landing' && !user) {
-    return <LandingPage onEnterApp={handleLogin} onLogin={handleLogin} onBuyCredits={handlePurchaseCredits} onTryFree={handleTryFree} />;
+    return <LandingPage onEnterApp={() => handleLogin('github')} onLogin={handleLogin} onBuyCredits={handlePurchaseCredits} onTryFree={handleTryFree} />;
   }
 
   return (
@@ -384,7 +394,7 @@ const App: React.FC = () => {
                 {user?.photoURL ? (
                     <img src={user.photoURL} alt="User" className="w-8 h-8 rounded-full border border-zinc-700" />
                 ) : (
-                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold">{user?.email?.[0].toUpperCase()}</div>
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold">{user?.email?.[0]?.toUpperCase() || 'U'}</div>
                 )}
                 <button 
                     onClick={handleLogout}
