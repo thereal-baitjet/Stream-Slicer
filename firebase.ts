@@ -1,27 +1,34 @@
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
 import { getDatabase, ref, get, set, runTransaction, child, update } from "firebase/database";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Firebase configuration provided by user
 const firebaseConfig = {
-  apiKey: "AIzaSyAsFxXqVR-sVB3q5AifvZDl41P17mgGrtU",
+  apiKey: "AIzaSyCfq6OBtwRHgkolbArAGY7hkIAdDh8y8R8",
   authDomain: "fitness-app-c19f0.firebaseapp.com",
-  databaseURL: "https://fitness-app-c19f0-default-rtdb.firebaseio.com",
   projectId: "fitness-app-c19f0",
   storageBucket: "fitness-app-c19f0.firebasestorage.app",
   messagingSenderId: "469356591287",
-  appId: "1:469356591287:web:847fb8b66d75ad4f63b532",
-  measurementId: "G-CSBK484PPN"
+  appId: "1:469356591287:web:13130e7171bcf3e463b532",
+  measurementId: "G-G959MPCSE3",
+  // Inferred database URL from project ID for Realtime Database support
+  databaseURL: "https://fitness-app-c19f0-default-rtdb.firebaseio.com"
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 const db = getDatabase(app);
 export const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
+
+// Initialize Analytics Safely
+let analytics: any = null;
+isSupported().then((supported) => {
+  if (supported) {
+    analytics = getAnalytics(app);
+  }
+}).catch(console.error);
 
 // Authentication Functions
 export const signInWithGoogle = async () => {
@@ -31,7 +38,7 @@ export const signInWithGoogle = async () => {
   } catch (error: any) {
     console.error("Error signing in with Google", error);
     if (error.code === 'auth/configuration-not-found' || error.code === 'auth/invalid-api-key') {
-      alert("Firebase Configuration Error: Please check your Firebase project setup.");
+      alert("Firebase Configuration Error: Please check your API key configuration.");
     }
     throw error;
   }
